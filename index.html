@@ -950,66 +950,75 @@
         // SEND NOTIFICATION
         // =============================================
         async function sendNotification(mobileId) {
-            const mobile = currentMobiles.find(m => m.id === mobileId);
-            if (!mobile) return;
-            
-            if (!confirm(`Send notification for "${mobile.name}" to all subscribers?`)) return;
-            
-            showToast('Sending notifications...', 'info');
-            
-            try {
-                // Get all active subscriptions
-                const response = await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?active=eq.true`, {
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                    }
-                });
-                
-                const subscriptions = await response.json();
-                
-                if (subscriptions.length === 0) {
-                    showToast('No subscribers found', 'error');
-                    return;
-                }
-                
-                // Send notification via Netlify Function
-                const notificationResponse = await fetch(NETLIFY_FUNCTION_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        subscriptions: subscriptions,
-                        notification: {
-                            title: `🔥 ${mobile.name} - ₹${mobile.price.toLocaleString('en-IN')}`,
-                            body: `${mobile.type === 'new' ? 'Brand New' : 'Second Hand'} ${mobile.brand} phone now available! ${mobile.description || 'Check it out now!'}`,
-                            icon: mobile.image1,
-                            image: mobile.image1,
-                            url: '/index.html',
-                            mobileId: mobile.id,
-                            tag: `mobile-${mobile.id}`,
-                            requireInteraction: true
-                        }
-                    })
-                });
-                
-                const result = await notificationResponse.json();
-                
-                if (result.success) {
-                    notificationCount += result.successCount;
-                    document.getElementById('notificationsSent').textContent = notificationCount;
-                    showToast(`✅ Sent to ${result.successCount} users!`, 'success');
-                } else {
-                    showToast('Failed to send notifications', 'error');
-                }
-                
-            } catch (error) {
-                console.error('Notification error:', error);
-                showToast('Error sending notifications', 'error');
+    const mobile = currentMobiles.find(m => m.id === mobileId);
+    if (!mobile) return;
+    
+    if (!confirm(`Send notification for "${mobile.name}" to all subscribers?`)) return;
+    
+    showToast('Sending notifications...', 'info');
+    
+    try {
+        // Get all active subscriptions
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?active=eq.true`, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
             }
+        });
+        
+        const subscriptions = await response.json();
+        
+        // DEBUG LOGS - CHECK THESE IN BROWSER CONSOLE (F12)
+        console.log('🔍 SUBSCRIPTIONS FROM DB:', subscriptions);
+        console.log('📊 SUBSCRIPTIONS COUNT:', subscriptions.length);
+        
+        if (subscriptions.length === 0) {
+            showToast('No subscribers found', 'error');
+            return;
         }
         
+        // Send notification via Netlify Function
+        const notificationResponse = await fetch(NETLIFY_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                subscriptions: subscriptions,
+                notification: {
+                    title: `🔥 ${mobile.name} - ₹${mobile.price.toLocaleString('en-IN')}`,
+                    body: `${mobile.type === 'new' ? 'Brand New' : 'Second Hand'} ${mobile.brand} phone now available! ${mobile.description || 'Check it out now!'}`,
+                    icon: mobile.image1,
+                    image: mobile.image1,
+                    url: '/index.html',
+                    mobileId: mobile.id,
+                    tag: `mobile-${mobile.id}`,
+                    requireInteraction: true
+                }
+            })
+        });
+        
+        const result = await notificationResponse.json();
+        
+        // MORE DEBUG LOGS
+        console.log('📤 FUNCTION RESULT:', result);
+        console.log('✅ SUCCESS COUNT:', result.successCount || 0);
+        console.log('❌ FAILURE COUNT:', result.failureCount || 0);
+        
+        if (result.success) {
+            notificationCount += result.successCount;
+            document.getElementById('notificationsSent').textContent = notificationCount;
+            showToast(`✅ Sent to ${result.successCount} users!`, 'success');
+        } else {
+            showToast('Failed to send notifications', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Notification error:', error);
+        showToast('Error sending notifications', 'error');
+    }
+}
+
         // =============================================
         // MOBILE MANAGEMENT
         // =============================================
